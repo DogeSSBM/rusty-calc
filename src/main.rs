@@ -107,15 +107,16 @@ fn eval(ast: Ast) -> i64 {
         Ast::NUM(n) => n,
         Ast::OPR(Opr::SRT, mut arg) => (eval(arg[0]) as f64).sqrt() as i64,
         Ast::OPR(op, args) => {
-            let &[n, rest @ ..] = &*args else {
+            let [first, rest @ ..] = &*args else {
                 panic!("Not enough arguments.");
             };
+            let n = eval(*first);
             match op {
-                Opr::SUB => rest.fold(eval(n), |i, r| i - eval(r)),
-                Opr::SUM => rest.fold(eval(n), |i, r| i + eval(r)),
-                Opr::DIV => rest.fold(eval(n), |i, r| i / eval(r)),
-                Opr::MUL => rest.fold(eval(n), |i, r| i * eval(r)),
-                Opr::MOD => rest.fold(eval(n), |i, r| i % eval(r)),
+                Opr::SUM => rest.fold(n, |i, r| i + eval(r)),
+                Opr::SUB => rest.fold(n, |i, r| i - eval(r)),
+                Opr::DIV => rest.fold(n, |i, r| i / eval(r)),
+                Opr::MUL => rest.fold(n, |i, r| i * eval(r)),
+                Opr::MOD => rest.fold(n, |i, r| i % eval(r)),
                 _ => unreachable!(),
             }
         }
@@ -128,7 +129,8 @@ fn main() {
         println!("Usage: {} <Input File>", args[0]);
         return;
     }
-    let src = fs::read_to_string(&args[1]).expect(&format!("Could not read file \"{}\"", args[1]));
+    let src = fs::read_to_string(&args[1])
+        .expect(&format!("Could not read file \"{}\"", args[1]));
 
     println!("src -\n{}", src);
 
