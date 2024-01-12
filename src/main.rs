@@ -68,57 +68,55 @@ enum Ast {
 }
 
 fn parse(tokens: &mut &[Token]) -> Ast {
-    let [first, rest @ ..] = tokens else{panic!("Empty expr")};
-    {
-        match first {
-            Token::LP => {
-                let [Token::SYM(s), rest2 @ ..] = rest else{
-                    panic!("Expected operator after '(' {:?}", rest);
-                };
-                let op = match s {
-                    '+' => Opr::SUM,
-                    '-' => Opr::SUB,
-                    '/' => Opr::DIV,
-                    '*' => Opr::MUL,
-                    '%' => Opr::MOD,
-                    'r' => Opr::SRT,
-                    _ => panic!("unreachable"),
-                };
-                *tokens = rest2;
-                let mut args = Vec::<Ast>::new();
-                while !tokens.is_empty() {
-                    if let [Token::RP, rest3 @ ..] = tokens {
-                        *tokens = rest3;
-                        break;
-                    }
-                    args.push(parse(tokens));
+    let [first, rest @ ..] = tokens else { panic!("Empty expr") };
+    match first {
+        Token::LP => {
+            let [Token::SYM(s), rest @ ..] = rest else{
+                panic!("Expected operator after '(' {:?}", rest);
+            };
+            let op = match s {
+                '+' => Opr::SUM,
+                '-' => Opr::SUB,
+                '/' => Opr::DIV,
+                '*' => Opr::MUL,
+                '%' => Opr::MOD,
+                'r' => Opr::SRT,
+                _ => panic!("unreachable"),
+            };
+            *tokens = rest;
+            let mut args = Vec::<Ast>::new();
+            while !tokens.is_empty() {
+                if let [Token::RP, rest @ ..] = tokens {
+                    *tokens = rest;
+                    break;
                 }
-                return Ast::OPR(op, args);
+                args.push(parse(tokens));
             }
-            Token::NUM(i) => {
-                *tokens = rest;
-                return Ast::NUM(*i);
-            }
-            _ => panic!("ASDFASDFsd"),
+            return Ast::OPR(op, args);
         }
+        Token::NUM(i) => {
+            *tokens = rest;
+            return Ast::NUM(*i);
+        }
+        _ => panic!("ASDFASDFsd"),
     }
 }
 
 fn eval(ast: Ast) -> i64 {
     match ast {
         Ast::NUM(n) => n,
-        Ast::OPR(Opr::SRT, mut arg) => (eval(arg.swap_remove(0)) as f64).sqrt() as i64,
+        Ast::OPR(Opr::SRT, mut arg) => (eval(arg[0]) as f64).sqrt() as i64,
         Ast::OPR(op, args) => {
-            use std::collections::VecDeque;
-            let mut arg_deq = VecDeque::from(args);
-            let Some( n) = arg_deq.pop_front() else{panic!("aaaaaa")};
-            let rest = arg_deq.into_iter().map(eval);
+            let [first, rest @ ..] = &*args else {
+                panic!("Not enough arguments.");
+            };
+            let n = eval(*first);
             match op {
-                Opr::SUM => rest.fold(eval(n), |i, r|i+r),
-                Opr::SUB => rest.fold(eval(n), |i, r|i-r),
-                Opr::DIV => rest.fold(eval(n), |i, r|i/r),
-                Opr::MUL => rest.fold(eval(n), |i, r|i*r),
-                Opr::MOD => rest.fold(eval(n), |i, r|i%r),
+                Opr::SUM => rest.fold(n, |i, r| i + eval(r)),
+                Opr::SUB => rest.fold(n, |i, r| i - eval(r)),
+                Opr::DIV => rest.fold(n, |i, r| i / eval(r)),
+                Opr::MUL => rest.fold(n, |i, r| i * eval(r)),
+                Opr::MOD => rest.fold(n, |i, r| i % eval(r)),
                 _ => unreachable!(),
             }
         }
@@ -131,7 +129,8 @@ fn main() {
         println!("Usage: {} <Input File>", args[0]);
         return;
     }
-    let src = fs::read_to_string(&args[1]).expect(&format!("Could not read file \"{}\"", args[1]));
+    let src = fs::read_to_string(&args[1])
+        .expect(&format!("Could not read file \"{}\"", args[1]));
 
     println!("src -\n{}", src);
 
